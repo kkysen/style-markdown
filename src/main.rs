@@ -43,7 +43,10 @@ impl Command {
 impl Args {
     fn run(&self) -> eyre::Result<()> {
         let before = fs_err::read_to_string(&self.path)?;
-        let after = self.command.rewrite(before);
+        let mut after = self.command.rewrite(before);
+        if !after.ends_with("\n") {
+            after.push_str("\n");
+        }
         fs_err::write(&self.path, after)?;
         Ok(())
     }
