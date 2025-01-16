@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.imports.granularity.group": "item",
+    "rust-analyzer.imports.prefix": "crate",
+    "rust-analyzer.checkOnSave": true,
+    "editor.semanticTokenColorCustomizations.rules.*.unsafe:rust": "#eb5046"
+}
