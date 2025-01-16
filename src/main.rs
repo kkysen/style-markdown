@@ -4,6 +4,7 @@ use clap::Parser;
 use clap::Subcommand;
 use color_eyre::eyre;
 use itertools::Itertools;
+use regex::Captures;
 use regex::Regex;
 
 #[derive(Parser, Debug)]
@@ -23,6 +24,9 @@ enum Command {
 
     /// Delete large embedded images (i.e. `<data:image/[^>]*>` HTML elements).
     EmbeddedImages,
+
+    /// Delete extra spaces after `\[[^\]]: `, such as footnotes.
+    ExtraRefSpaces,
 }
 
 impl Command {
@@ -34,6 +38,13 @@ impl Command {
             Self::EmbeddedImages => {
                 let regex = Regex::new(r"<data:image/[^>]*>").unwrap();
                 let after = regex.split(&before).join("TODO");
+                after
+            }
+            Self::ExtraRefSpaces => {
+                let regex = Regex::new(r"(\[[^\]]*\]: ) *").unwrap();
+                let after = regex
+                    .replace_all(&before, |captures: &Captures| captures[1].to_string())
+                    .into_owned();
                 after
             }
         }
