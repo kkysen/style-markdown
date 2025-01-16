@@ -27,6 +27,9 @@ enum Command {
 
     /// Delete extra spaces after `\[[^\]]: `, such as footnotes.
     ExtraRefSpaces,
+
+    /// Simplify `[URL](URL)`s as `<URL>`.
+    SimplifyUrls,
 }
 
 impl Command {
@@ -44,6 +47,20 @@ impl Command {
                 let regex = Regex::new(r"(\[[^\]]*\]: ) *").unwrap();
                 let after = regex
                     .replace_all(&before, |captures: &Captures| captures[1].to_string())
+                    .into_owned();
+                after
+            }
+            Self::SimplifyUrls => {
+                let regex = Regex::new(r"\[(?<text>[^\]]*)\]\((?<link>[^)]*)\)").unwrap();
+                let after = regex
+                    .replace_all(&before, |captures: &Captures| {
+                        let (full, [text, link]) = captures.extract();
+                        if text.replace('\\', "") == link {
+                            format!("<{link}>")
+                        } else {
+                            full.to_string()
+                        }
+                    })
                     .into_owned();
                 after
             }
