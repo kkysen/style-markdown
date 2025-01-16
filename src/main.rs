@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use clap::Subcommand;
 use color_eyre::eyre;
+use itertools::Itertools;
+use regex::Regex;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -18,6 +20,9 @@ struct Args {
 enum Command {
     /// Replace fancy (`‘’`, `“”`) quotes with simple (`'`, `"`) quotes.
     Quotes,
+
+    /// Delete large embedded images (i.e. `<data:image/[^>]*>` HTML elements).
+    EmbeddedImages,
 }
 
 impl Command {
@@ -26,6 +31,11 @@ impl Command {
             Self::Quotes => before
                 .replace(|c| c == '‘' || c == '’', "'")
                 .replace(|c| c == '“' || c == '”', "\""),
+            Self::EmbeddedImages => {
+                let regex = Regex::new(r"<data:image/[^>]*>").unwrap();
+                let after = regex.split(&before).join("TODO");
+                after
+            }
         }
     }
 }
