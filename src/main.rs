@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -71,22 +72,60 @@ impl Command {
                 after
             }
             Self::SemanticLineBreaks => {
-                let punctuation = Regex::new(r"(?<punctuation>[.!?;]) +").unwrap();
-                let after = before
-                    .split('\n')
-                    .map(|line| {
-                        if line.len() <= 80 {
-                            // return vec![line.to_owned()];
-                            return line.to_owned();
+                let max_line_length = 100;
+
+                // First, split each original line at the given punctuation regex.
+                // Then rejoin lines before it gets longer than the line length.
+                fn add_line_breaks<'a>(
+                    punctuation_regex: &str,
+                    line: &'a str,
+                    max_line_length: usize,
+                ) -> Cow<'a, str> {
+                    let punctuation =
+                        Regex::new(&format!("(?<punctuation>{punctuation_regex}) +")).unwrap();
+                    // Don't break headings.
+                    let is_heading = || line.trim_ascii_start().starts_with('#');
+                    // Early optimization.
+                    if line.len() < max_line_length || is_heading() {
+                        return Cow::Borrowed(line);
+                    }
+                    let with_all_line_breaks = punctuation
+                        // Replace punctuation plus space with punctuation plus newline,
+                        // thus adding line breaks at all punctuation.
+                        .replace_all(line, |captures: &Captures| {
+                            let (_, [punctuation]) = captures.extract();
+                            format!("{punctuation}\n")
+                        });
+                    // For simplicity, the above is implemented by
+                    // replacing the spaces after punctuation with a newline,
+                    // so now split again to get the lines.
+                    let fully_split_lines = with_all_line_breaks.split('\n');
+                    // Newlines are manually added here.
+                    let mut rejoined_lines = Vec::new();
+                    let mut current_line_length = 0;
+                    for line in fully_split_lines {
+                        if current_line_length == 0 {
+                            // It could be too long, but we can't split it anymore by punctuation.
+                            rejoined_lines.push(line);
+                            current_line_length = line.len();
+                        } else if current_line_length + line.len() < max_line_length {
+                            // There's room to join a line, so join it with a space.
+                            rejoined_lines.push(" ");
+                            rejoined_lines.push(line);
+                            current_line_length += line.len();
+                        } else {
+                            // The line is too long, so keep it split.
+                            rejoined_lines.push("\n");
+                            rejoined_lines.push(line);
+                            current_line_length = line.len();
                         }
-                        punctuation
-                            .replace_all(line, |captures: &Captures| {
-                                let (_, [punctuation]) = captures.extract();
-                                format!("{punctuation}\n")
-                            })
-                            .into_owned()
-                        // line.split(|c| ".!?;".contains(c)).collect()
-                    })
+                    }
+                    Cow::Owned(rejoined_lines.concat())
+                }
+
+                let after = before
+                    .split_terminator('\n')
+                    .map(|line| add_line_breaks(r"[.!?;:]", line, max_line_length))
                     .join("\n");
                 after
             }
