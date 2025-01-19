@@ -195,10 +195,56 @@ fn move_footnotes_after_punctuation(before: String) -> String {
 
 #[cfg(test)]
 mod tests {
+    use crate::canonicalize_quotes;
+    use crate::canonicalize_through_running;
     use crate::move_footnotes_after_punctuation;
+    use crate::remove_embedded_images;
+    use crate::remove_extra_ref_spaces;
+    use crate::simplify_urls;
+
+    #[test]
+    fn test_canonicalize_quotes() {
+        let before = "‘’, “”";
+        let after = "'', \"\"";
+        assert_eq!(canonicalize_quotes(before.into()), after);
+    }
+
+    #[test]
+    fn test_remove_embedded_images() {
+        let before = "[image1]: <data:image/png;base64,iVBORw0KGgoAAAAN>
+
+[image2]: <data:image/png;base64,iVBORw0KGgoAAAANS>";
+        let after = "[image1]: TODO
+
+[image2]: TODO";
+        assert_eq!(remove_embedded_images(before.into()), after);
+    }
+
+    #[test]
+    fn test_remove_extra_ref_spaces() {
+        let before = "[^2]:    hello";
+        let after = "[^2]: hello";
+        assert_eq!(remove_extra_ref_spaces(before.into()), after);
+    }
+
+    #[test]
+    fn test_simplify_urls() {
+        let before = r"[URL](URL), [URL\_2](URL_2)";
+        let after = "<URL>, <URL_2>";
+        assert_eq!(simplify_urls(before.into()), after);
+    }
+
+    #[test]
+    fn test_canonicalize_through_running() {
+        let before = "through-running, through running, running through, through-run, through run, run through";
+        let after = "through-running, through-running, through-running, through-run, through-run, through-run";
+        assert_eq!(canonicalize_through_running(before.into()), after);
+    }
 
     #[test]
     fn test_move_footnotes_after_punctuation() {
-        assert_eq!(move_footnotes_after_punctuation("[^1].".into()), ".[^1]");
+        let before = "[^1].";
+        let after = ".[^1]";
+        assert_eq!(move_footnotes_after_punctuation(before.into()), after);
     }
 }
