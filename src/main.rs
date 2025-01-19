@@ -125,7 +125,12 @@ impl Command {
 
                 let after = before
                     .split_terminator('\n')
-                    .map(|line| add_line_breaks(r"[.!?;:]", line, max_line_length))
+                    .map(|line| {
+                        add_line_breaks(r"[.!?;:]", line, max_line_length)
+                            .split_terminator('\n')
+                            .map(|line| add_line_breaks(r"[,)\]]", line, max_line_length))
+                            .join("\n")
+                    })
                     .join("\n");
                 after
             }
