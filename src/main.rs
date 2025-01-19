@@ -53,6 +53,9 @@ enum Command {
 
     /// Add semantic line breaks as best as possible.
     SemanticLineBreaks,
+
+    /// Canonicalize "through-running" words, always hyphenating and always putting "through" before "run".
+    ThroughRunning,
 }
 
 impl Command {
@@ -63,6 +66,7 @@ impl Command {
             Self::ExtraRefSpaces => remove_extra_ref_spaces,
             Self::SimplifyUrls => simplify_urls,
             Self::SemanticLineBreaks => add_semantic_line_breaks,
+            Self::ThroughRunning => canonicalize_through_running,
         };
         rewrite(before)
     }
@@ -164,5 +168,14 @@ fn add_semantic_line_breaks(before: String) -> String {
                 .join("\n")
         })
         .join("\n");
+    after
+}
+
+fn canonicalize_through_running(before: String) -> String {
+    let after = before
+        .replace("through running", "through-running")
+        .replace("running through", "through-running")
+        .replace("through run", "through-run")
+        .replace("run through", "through-run");
     after
 }
