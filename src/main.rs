@@ -195,6 +195,7 @@ fn move_footnotes_after_punctuation(before: String) -> String {
 
 #[cfg(test)]
 mod tests {
+    use crate::add_semantic_line_breaks;
     use crate::canonicalize_quotes;
     use crate::canonicalize_through_running;
     use crate::move_footnotes_after_punctuation;
@@ -232,6 +233,39 @@ mod tests {
         let before = r"[URL](URL), [URL\_2](URL_2)";
         let after = "<URL>, <URL_2>";
         assert_eq!(simplify_urls(before.into()), after);
+    }
+
+    #[test]
+    fn test_add_semantic_line_breaks() {
+        let before = "
+# A Not-So-Capital Plan Part 2: The Future is Electric
+
+Metro-North's M8 can run on catenary power (left[^M8-catenary-pantograph-citation]) or on either over- or under-running third rails (shoe seen at right[^M8-third-rail-shoe-citation]).
+
+## Introduction
+
+In major cities all across the globe, electric trains form the backbone of urban transportation. The benefits of electrification are simply too great to ignore. Electric trains accelerate faster, reduce overall journey times, and provide a higher-quality passenger experience than their diesel-powered counterparts, all while being cheaper to run and maintain. Electric trains are also a powerful tool for decarbonization: they can easily run on non-carbon fuel sources and produce no local pollution. It is rare that a single technology can reduce both pollution and costs while also actually improving service, but electric rail can accomplish just that. That is why the future of rail is electric around both the country and the world.
+        ";
+        let after = "
+# A Not-So-Capital Plan Part 2: The Future is Electric
+
+Metro-North's M8 can run on catenary power (left[^M8-catenary-pantograph-citation])
+or on either over- or under-running third rails (shoe seen at right[^M8-third-rail-shoe-citation]).
+
+## Introduction
+
+In major cities all across the globe, electric trains form the backbone of urban transportation.
+The benefits of electrification are simply too great to ignore.
+Electric trains accelerate faster, reduce overall journey times,
+and provide a higher-quality passenger experience than their diesel-powered counterparts,
+all while being cheaper to run and maintain.
+Electric trains are also a powerful tool for decarbonization:
+they can easily run on non-carbon fuel sources and produce no local pollution.
+It is rare that a single technology can reduce both pollution and costs while also actually improving service,
+but electric rail can accomplish just that.
+That is why the future of rail is electric around both the country and the world.
+        ";
+        assert_eq!(add_semantic_line_breaks(before.into()), after);
     }
 
     #[test]
