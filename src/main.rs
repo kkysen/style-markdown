@@ -30,6 +30,9 @@ enum Command {
 
     /// Simplify `[URL](URL)`s as `<URL>`.
     SimplifyUrls,
+
+    /// Add semantic line breaks as best as possible.
+    SemanticLineBreaks,
 }
 
 impl Command {
@@ -65,6 +68,26 @@ impl Command {
                         }
                     })
                     .into_owned();
+                after
+            }
+            Self::SemanticLineBreaks => {
+                let regex = Regex::new(r"(?<punctuation>[.!?;]) +").unwrap();
+                let after = before
+                    .split('\n')
+                    .map(|line| {
+                        if line.len() <= 80 {
+                            // return vec![line.to_owned()];
+                            return line.to_owned();
+                        }
+                        regex
+                            .replace_all(line, |captures: &Captures| {
+                                let (_, [punctuation]) = captures.extract();
+                                format!("{punctuation}\n")
+                            })
+                            .into_owned()
+                        // line.split(|c| ".!?;".contains(c)).collect()
+                    })
+                    .join("\n");
                 after
             }
         }
