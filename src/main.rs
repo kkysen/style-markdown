@@ -56,6 +56,9 @@ enum Command {
 
     /// Canonicalize "through-running" words, always hyphenating and always putting "through" before "run".
     ThroughRunning,
+
+    /// Move footnotes to always after punctuation.
+    FootnotesAfterPunctuation,
 }
 
 impl Command {
@@ -67,6 +70,7 @@ impl Command {
             Self::SimplifyUrls => simplify_urls,
             Self::SemanticLineBreaks => add_semantic_line_breaks,
             Self::ThroughRunning => canonicalize_through_running,
+            Self::FootnotesAfterPunctuation => move_footnotes_after_punctuation,
         };
         rewrite(before)
     }
@@ -178,4 +182,23 @@ fn canonicalize_through_running(before: String) -> String {
         .replace("through run", "through-run")
         .replace("run through", "through-run");
     after
+}
+
+fn move_footnotes_after_punctuation(before: String) -> String {
+    let regex = Regex::new(r"(?<footnote>\[\^[^\]]*\])(?<punctuation>[.!?;:,])").unwrap();
+    let after = regex.replace_all(&before, |captures: &Captures| {
+        let (_, [footnote, punctuation]) = captures.extract();
+        format!("{punctuation}{footnote}")
+    });
+    after.into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::move_footnotes_after_punctuation;
+
+    #[test]
+    fn test_move_footnotes_after_punctuation() {
+        assert_eq!(move_footnotes_after_punctuation("[^1].".into()), ".[^1]");
+    }
 }
