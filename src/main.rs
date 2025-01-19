@@ -45,20 +45,20 @@ impl Command {
                 after
             }
             Self::EmbeddedImages => {
-                let regex = Regex::new(r"<data:image/[^>]*>").unwrap();
-                let after = regex.split(&before).join("TODO");
+                let data_image = Regex::new(r"<data:image/[^>]*>").unwrap();
+                let after = data_image.split(&before).join("TODO");
                 after
             }
             Self::ExtraRefSpaces => {
-                let regex = Regex::new(r"(\[[^\]]*\]: ) *").unwrap();
-                let after = regex
+                let ref_with_spaces = Regex::new(r"(\[[^\]]*\]: ) *").unwrap();
+                let after = ref_with_spaces
                     .replace_all(&before, |captures: &Captures| captures[1].to_string())
                     .into_owned();
                 after
             }
             Self::SimplifyUrls => {
-                let regex = Regex::new(r"\[(?<text>[^\]]*)\]\((?<link>[^)]*)\)").unwrap();
-                let after = regex
+                let link = Regex::new(r"\[(?<text>[^\]]*)\]\((?<link>[^)]*)\)").unwrap();
+                let after = link
                     .replace_all(&before, |captures: &Captures| {
                         let (full, [text, link]) = captures.extract();
                         if text.replace('\\', "") == link {
@@ -71,7 +71,7 @@ impl Command {
                 after
             }
             Self::SemanticLineBreaks => {
-                let regex = Regex::new(r"(?<punctuation>[.!?;]) +").unwrap();
+                let punctuation = Regex::new(r"(?<punctuation>[.!?;]) +").unwrap();
                 let after = before
                     .split('\n')
                     .map(|line| {
@@ -79,7 +79,7 @@ impl Command {
                             // return vec![line.to_owned()];
                             return line.to_owned();
                         }
-                        regex
+                        punctuation
                             .replace_all(line, |captures: &Captures| {
                                 let (_, [punctuation]) = captures.extract();
                                 format!("{punctuation}\n")
