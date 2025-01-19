@@ -35,9 +35,12 @@ enum Command {
 impl Command {
     fn rewrite(&self, before: String) -> String {
         match *self {
-            Self::Quotes => before
-                .replace(|c| c == '‘' || c == '’', "'")
-                .replace(|c| c == '“' || c == '”', "\""),
+            Self::Quotes => {
+                let after = before
+                    .replace(|c| "‘’".contains(c), "'")
+                    .replace(|c| "“”".contains(c), "\"");
+                after
+            }
             Self::EmbeddedImages => {
                 let regex = Regex::new(r"<data:image/[^>]*>").unwrap();
                 let after = regex.split(&before).join("TODO");
