@@ -258,7 +258,7 @@ fn canonicalize_through_running(before: String) -> String {
 }
 
 fn move_footnotes_after_punctuation(before: String) -> String {
-    let regex = Regex::new(r"(?<footnote>\[\^[^\]]*\])(?<punctuation>[.!?;:,])").unwrap();
+    let regex = Regex::new(r"(?<footnote>\[\^[^\]]*\])(?<punctuation>[.!?;,])").unwrap();
     let after = regex.replace_all(&before, |captures: &Captures| {
         let (_, [footnote, punctuation]) = captures.extract();
         format!("{punctuation}{footnote}")
