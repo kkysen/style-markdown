@@ -1,9 +1,14 @@
 use std::borrow::Cow;
+use std::env;
 use std::path::PathBuf;
+use std::process;
+use std::process::Output;
 
 use clap::Parser;
 use clap::Subcommand;
 use color_eyre::eyre;
+use color_eyre::eyre::ensure;
+use color_eyre::eyre::Context;
 use itertools::Itertools;
 use regex::Captures;
 use regex::Regex;
@@ -21,20 +26,88 @@ struct Args {
     /// Path of the Markdown `*.md` file to style.
     path: PathBuf,
 
+    /// `git commit` the changes.
+    #[arg(long)]
+    commit: bool,
+
     #[command(subcommand)]
     command: Command,
 }
 
 impl Args {
     fn run(&self) -> eyre::Result<()> {
+        let git = || process::Command::new("git");
+        if self.commit {
+            // `git status --porcelain` should be empty; no current changes
+            run_command(
+                git().args(["status", "--porcelain"]),
+                &[&check_status, &check_empty_stdout],
+            )?;
+            assert!({
+                let output = git().args(["status", "--porcelain"]).output()?;
+                output.status.success() && output.stdout.is_empty()
+            });
+        }
         let before = fs_err::read_to_string(&self.path)?;
         let mut after = self.command.rewrite(before);
         if !after.ends_with("\n") {
             after.push_str("\n");
         }
         fs_err::write(&self.path, after)?;
+        if self.commit {
+            // `git add {self.path}`
+            run_command(git().arg("add").arg(&self.path), &[&check_status])?;
+            let cmd = env::args()
+                .map(|arg| {
+                    if arg.contains(' ') {
+                        format!("'{}'", arg.replace('\'', r"\'"))
+                    } else {
+                        arg
+                    }
+                })
+                .join(" ");
+            let msg = format!("run `{cmd}`");
+            // `git commit -m "run `{cmd}`"`
+            run_command(git().args(["commit", "-m", &msg]), &[&check_status])?;
+        }
         Ok(())
     }
+}
+
+fn run_command(
+    cmd: &mut process::Command,
+    checks: &[&dyn Fn(&mut Output) -> eyre::Result<()>],
+) -> eyre::Result<()> {
+    println!("> {cmd:?}");
+    cmd.output()
+        .map_err(eyre::Error::from) // into eyre
+        .and_then(|mut output| {
+            for check in checks {
+                check(&mut output)?;
+            }
+            Ok(())
+        })
+        .wrap_err_with(|| format!("error running: {cmd:?}"))
+}
+
+fn check_status(output: &mut Output) -> eyre::Result<()> {
+    ensure!(
+        output.status.success(),
+        "exited with {}\nstdout:\n{}\nstderr:\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
+fn check_empty_stdout(output: &mut Output) -> eyre::Result<()> {
+    ensure!(
+        output.stdout.is_empty(),
+        "expected empty stdout: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    Ok(())
 }
 
 #[derive(Subcommand, Debug)]
