@@ -188,14 +188,17 @@ fn simplify_urls(before: String) -> String {
 fn add_semantic_line_breaks(before: String) -> String {
     let max_line_length = 100;
 
-    // First, split each original line at the given punctuation regex.
-    // Then rejoin lines before it gets longer than the line length.
+    /// First, split each original line at the given punctuation regex.
+    /// Then rejoin lines before it gets longer than the line length.
+    ///
+    /// `separator_regex` should have either a `before` or `after` capture name
+    /// depending on if it should go before or after the line break.
     fn add_line_breaks<'a>(
-        punctuation_regex: &str,
+        separator_regex: &str,
         line: &'a str,
         max_line_length: usize,
     ) -> Cow<'a, str> {
-        let punctuation = Regex::new(&format!("(?<punctuation>{punctuation_regex}) +")).unwrap();
+        let punctuation = Regex::new(separator_regex).unwrap();
         // Don't break headings.
         let is_heading = || line.trim_ascii_start().starts_with('#');
         // Early optimization.
@@ -206,8 +209,13 @@ fn add_semantic_line_breaks(before: String) -> String {
             // Replace punctuation plus space with punctuation plus newline,
             // thus adding line breaks at all punctuation.
             .replace_all(line, |captures: &Captures| {
-                let (_, [punctuation]) = captures.extract();
-                format!("{punctuation}\n")
+                if let Some(before) = captures.name("before") {
+                    format!("{}\n", before.as_str())
+                } else if let Some(after) = captures.name("after") {
+                    format!("\n{}", after.as_str())
+                } else {
+                    panic!("captures supposed to have either `before` xor `after` group, but is {captures:?}");
+                }
             });
         // For simplicity, the above is implemented by
         // replacing the spaces after punctuation with a newline,
@@ -236,12 +244,27 @@ fn add_semantic_line_breaks(before: String) -> String {
         Cow::Owned(rejoined_lines.concat())
     }
 
+    // These are chosen somewhat subjectively.
+    // Usually they should be coordinating and subordinating conjunctions.
+    let line_starting_words = ["because", "that", "rather than", "of how", "in order to"];
+    let line_starting_words_regex = line_starting_words
+        .iter()
+        // Sort by more words first, so that they take priority in the regex.
+        .map(|conjunction| conjunction.split(' ').collect::<Vec<_>>())
+        .sorted_by(|a, b| a.len().cmp(&b.len()).reverse())
+        .map(|words| words.join(" "))
+        .join("|");
+
+    let outer_separators_regex = r"(?<before>[.!?;:]) +";
+    let inner_separators_regex =
+        &format!(r"(?<before>[,)\]]) +| +(?<after>\(|\[|{line_starting_words_regex})");
+
     let after = before
         .split_terminator('\n')
         .map(|line| {
-            add_line_breaks(r"[.!?;:]", line, max_line_length)
+            add_line_breaks(&outer_separators_regex, line, max_line_length)
                 .split_terminator('\n')
-                .map(|line| add_line_breaks(r"[,)\]]", line, max_line_length))
+                .map(|line| add_line_breaks(inner_separators_regex, line, max_line_length))
                 .join("\n")
         })
         .join("\n");
